@@ -10,4 +10,6 @@ public class TernarySearchTreeAutocompleteTests extends AutocompleteTests {
     public Autocomplete createAutocomplete() {
         return new TernarySearchTreeAutocomplete();
     }
+
+
 }

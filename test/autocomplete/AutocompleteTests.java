@@ -56,6 +56,30 @@ public abstract class AutocompleteTests {
         testing.addAll(cities);
     }
 
+
+    @Test
+    void compareSimple() {
+        List<CharSequence> terms = List.of(
+                "alpha", "delta", "do", "cats", "dodgy", "pilot", "dog"
+        );
+        CharSequence prefix = "do";
+        //List<CharSequence> expected = List.of("do", "dodgy", "dog");
+
+        List<CharSequence> expected = reference.allMatches(prefix);
+        List<CharSequence> actual = testing.allMatches(prefix);
+        assertEquals(expected.size(), actual.size());
+        assertAllMatches("do");
+        assertTrue(expected.containsAll(actual));
+        assertTrue(actual.containsAll(expected));
+
+//        Autocomplete testing = createAutocomplete();
+//        testing.addAll(terms);
+//        List<CharSequence> actual = testing.allMatches(prefix);
+//        assertEquals(expected.size(), actual.size());
+//        assertTrue(expected.containsAll(actual));
+//        assertTrue(actual.containsAll(expected));
+    }
+
     @Test
     void comparePrefixSea() {
         assertAllMatches("Sea");
@@ -128,8 +152,8 @@ public abstract class AutocompleteTests {
                     long addTime = System.nanoTime() - addStart;
                     totalAddAllTime += addTime;
                 }
-                // Output the average to 10 decimal places.
-                System.out.print(totalAddAllTime / (double) NUM_TRIALS);
+                // Output the average rounded to the closest integer.
+                System.out.printf("%.0f", totalAddAllTime / (double) NUM_TRIALS);
 
                 for (String prefix : new String[]{"Sea"}) {
                     long totalMatchesTime = 0;
@@ -140,9 +164,9 @@ public abstract class AutocompleteTests {
                         long matchesTime = System.nanoTime() - matchesStart;
                         totalMatchesTime += matchesTime;
                     }
-                    // Output the average to 10 decimal places.
+                    // Output the average rounded to the closest integer.
                     System.out.print(',');
-                    System.out.print(totalMatchesTime / (double) NUM_TRIALS);
+                    System.out.printf("%.0f", totalMatchesTime / (double) NUM_TRIALS);
                 }
                 System.out.println();
             }

@@ -1,5 +1,6 @@
 package autocomplete;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
@@ -23,14 +24,71 @@ public class TernarySearchTreeAutocomplete implements Autocomplete {
 
     @Override
     public void addAll(Collection<? extends CharSequence> terms) {
-        // TODO: Replace with your code
-        throw new UnsupportedOperationException("Not implemented yet");
+        if (terms == null) {
+            throw new IllegalArgumentException("Empty collection terms for addAll method");
+        }
+        for (CharSequence term: terms) {
+            overallRoot = addNode(overallRoot, term, 0);
+        }
+    }
+
+    private Node addNode(Node curr, CharSequence term, int i) {
+        char currChar = term.charAt(i);
+        if (curr == null) {
+            curr = new Node(currChar);
+        }
+        if (curr.data > currChar) {
+            curr.left = addNode(curr.left, term, i);
+        } else if (curr.data < currChar) {
+            curr.right = addNode(curr.right, term, i);
+        } else if (i < term.length() - 1) {
+            curr.mid = addNode(curr.mid, term, i + 1);
+        } else if (i == term.length() - 1) {
+            curr.isTerm = true;
+        }
+
+        return curr;
     }
 
     @Override
     public List<CharSequence> allMatches(CharSequence prefix) {
-        // TODO: Replace with your code
-        throw new UnsupportedOperationException("Not implemented yet");
+        List<CharSequence> terms = new ArrayList<CharSequence>();
+        if (prefix == null || prefix.isEmpty()) return terms;
+
+        Node subTree = get(overallRoot, prefix, 0);
+
+        if (subTree == null) return terms;
+        if (subTree.isTerm) terms.add(prefix);
+        collect(subTree.mid, prefix + "", terms);
+
+        return terms;
+    }
+
+    private Node get(Node curr, CharSequence prefix, int i) {
+        if (curr == null) return null;
+        char currChar = prefix.charAt(i);
+
+        if (curr.data < currChar) {
+            curr = get(curr.right, prefix, i);
+        } else if (curr.data > currChar) {
+            curr = get(curr.left, prefix, i);
+        } else if (i < prefix.length() - 1) {
+            curr = get(curr.mid, prefix, i + 1);
+        }
+
+        return curr;
+
+    }
+
+    private void collect(Node curr, String currString, List<CharSequence> terms) {
+        if (curr == null) return;
+        if (curr.isTerm) {
+            terms.add(currString + curr.data);
+        }
+
+        collect(curr.left, currString, terms);
+        collect(curr.mid, currString + curr.data, terms);
+        collect(curr.right, currString, terms);
     }
 
     /**
