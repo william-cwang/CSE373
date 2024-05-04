@@ -1,3 +1,6 @@
+import minpq.HeapMinPQ;
+import minpq.MinPQ;
+
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -38,6 +41,10 @@ public class ReportAnalyzer {
                 .toList();
 
         // TODO: Display the most commonly-reported WCAG recommendations using MinPQ
-        throw new UnsupportedOperationException();
+        MinPQ<String> wcag = new HeapMinPQ<>();
+        for (String i : wcagTags) {
+
+        }
+
     }
 }
