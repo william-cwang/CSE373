@@ -51,7 +51,7 @@ public class OptimizedHeapMinPQ<E> implements MinPQ<E> {
         } else if (elements.isEmpty()) elements.add(null);
 
         elements.add(new PriorityNode<E>(element, priority));
-        elementsToIndex.put(element, elements.size());
+        elementsToIndex.put(element, elements.size() - 1);
         swim(elements.size() - 1);
     }
 
@@ -70,16 +70,15 @@ public class OptimizedHeapMinPQ<E> implements MinPQ<E> {
         }
     }
 
-    private void sink(int index, PriorityNode<E> curr) {
-        elements.set(index, curr);
+    private void sink(int index) {
 
         int leftChildIndex = index * 2;
         int rightChildIndex = index * 2 + 1;
         int minChildIndex = getMinChildIndex(leftChildIndex, rightChildIndex);
-        if (minChildIndex > 0 &&
+        if (minChildIndex > 0 && minChildIndex < elements.size() &&
                 elements.get(index).getPriority() > elements.get(minChildIndex).getPriority()) {
             swap(index, minChildIndex);
-            sink(index, elements.get(index));
+            sink(minChildIndex);
         }
 
     }
@@ -91,9 +90,11 @@ public class OptimizedHeapMinPQ<E> implements MinPQ<E> {
             minChildIndex = leftChildIndex;
 
             // Bug: isn't correctly identifying indexes
-        } else if (leftChildIndex != 0 && rightChildIndex <= elements.size() - 1 && elements.get(leftChildIndex).getPriority() < elements.get(rightChildIndex).getPriority()) {
+        } else if (leftChildIndex != 0 && rightChildIndex <= elements.size() - 1 &&
+                elements.get(leftChildIndex).getPriority() < elements.get(rightChildIndex).getPriority()) {
             minChildIndex = leftChildIndex;
-        } else if (leftChildIndex != 0 && rightChildIndex <= elements.size() - 1 && elements.get(rightChildIndex) != null) {
+        } else if (leftChildIndex != 0 && rightChildIndex <= elements.size() - 1 &&
+                elements.get(rightChildIndex) != null) {
             minChildIndex = rightChildIndex;
         }
         return minChildIndex;
@@ -113,12 +114,12 @@ public class OptimizedHeapMinPQ<E> implements MinPQ<E> {
 
     @Override
     public boolean contains(E element) {
-        return elementsToIndex.get(element) != null;
+        return elementsToIndex.containsKey(element);
     }
 
     @Override
     public double getPriority(E element) {
-        return elementsToIndex.getOrDefault(element, 0);
+        return elements.get(elementsToIndex.get(element)).getPriority();
     }
 
     @Override
@@ -134,10 +135,11 @@ public class OptimizedHeapMinPQ<E> implements MinPQ<E> {
         if (isEmpty()) {
             throw new NoSuchElementException("PQ is empty");
         }
-        swap(1, elements.size() - 1);
-        sink(1, elements.get(1));
-        E elementRemove = elements.getLast().getElement();
-        elements.remove(elements.getLast());
+        E elementRemove = peekMin();
+        swap(1, size());
+        elements.remove(size());
+        elementsToIndex.remove(elementRemove);
+        sink(1);
         return elementRemove;
     }
 
@@ -146,14 +148,12 @@ public class OptimizedHeapMinPQ<E> implements MinPQ<E> {
         if (!contains(element)) {
             throw new NoSuchElementException("PQ does not contain " + element);
         }
-        int oldIndex = elementsToIndex.get(element) - 1;
+        int oldIndex = elementsToIndex.get(element);
 
-        elements.set(oldIndex, new PriorityNode<>(element, priority));
+        elements.get(oldIndex).setPriority(priority);
 
-        swim(elementsToIndex.get(element) - 1);
-        if (elements.get(oldIndex).getElement() == element) {
-            sink(elementsToIndex.get(element), new PriorityNode<E>(element, priority));
-        }
+        swim(oldIndex);
+        sink(oldIndex);
 
     }
 

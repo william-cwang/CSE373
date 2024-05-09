@@ -5,6 +5,7 @@ import org.junit.jupiter.api.TestInstance;
 
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.util.*;
 import java.util.Random;
 import java.util.Scanner;
 
@@ -124,4 +125,68 @@ public abstract class MinPQTests {
             }
         }
     }
+
+    // Random Testing
+    //@Test
+    public void randomTest() throws FileNotFoundException {
+        File inputFile = new File("data/wcag.tsv");
+        Scanner scanner = new Scanner(inputFile);
+        ArrayList<String> tags = new ArrayList<>();
+        ArrayList<Integer> priorities = new ArrayList<>();
+
+        MinPQ<String> reference = new DoubleMapMinPQ<>();
+        MinPQ<String> testing = new OptimizedHeapMinPQ<>();
+
+        // Part one -- adding all of the tags to a list
+        while (scanner.hasNextLine()) {
+            String[] line = scanner.nextLine().split("\t", 2);
+            String title = line[1];
+
+            tags.add(title);
+        }
+
+        // Part two -- randomly adding 10,000 tags to reference/testing PQs, adding priority values as necessary
+        Random random = new Random(373);
+        for (int i = 0; i < 10000; i++) {
+            String element = tags.get(random.nextInt(tags.size()));
+
+            if (!reference.contains(element)) reference.add(element, 1);
+            else reference.changePriority(element, reference.getPriority(element) + 1);
+
+            if (!testing.contains(element)) testing.add(element, 1);
+            else testing.changePriority(element, testing.getPriority(element) + 1);
+
+        }
+
+        // Removing each element and making sure priorities are same
+        // If multiple elements have same priorities, temporarily remove elements until we find a match,
+        // then re-add them back.
+        // We are testing both that the priorities of the current heap-min values (priorities) are the same, then
+        // testing that the values removed are the same.
+        // You can easily change the "3" to 5-10 or another arbitrary number.
+        while (reference.size() > 3) {
+            if (reference.peekMin().equals(testing.peekMin())) {
+                assertEquals(reference.removeMin(), testing.removeMin());
+            } else {
+                Map<String, Double> removedElements = new HashMap<>();
+                while (!reference.peekMin().equals(testing.peekMin())) {
+                    assertEquals(reference.getPriority(reference.peekMin()), testing.getPriority(testing.peekMin()));
+                    removedElements.put(testing.peekMin(), testing.getPriority(testing.peekMin()));
+                    testing.removeMin();
+                }
+                assertEquals(reference.removeMin(), testing.removeMin());
+                for (Map.Entry<String, Double> i : removedElements.entrySet()) {
+                    testing.add(i.getKey(), i.getValue());
+                }
+            }
+        }
+
+        // Printing out the top # maximum values
+        while (!reference.isEmpty()) {
+            testing.removeMin();
+            System.out.println(reference.getPriority((reference.peekMin())) + " Occurences: " +
+                    reference.removeMin());
+        }
+    }
+
 }

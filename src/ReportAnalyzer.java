@@ -42,9 +42,17 @@ public class ReportAnalyzer {
 
         // TODO: Display the most commonly-reported WCAG recommendations using MinPQ
         MinPQ<String> wcag = new HeapMinPQ<>();
-        for (String i : wcagTags) {
 
+        for (int i = 0; i < wcagTags.size(); i++) {
+            if (wcag.contains(wcagTags.get(i))) {
+                wcag.addOrChangePriority(wcagTags.get(i), wcag.getPriority(wcagTags.get(i)) - 1);
+            } else {
+                wcag.add(wcagTags.get(i), -1);
+            }
         }
 
+        System.out.println(wcagDefinitions.get(wcag.removeMin()));
+        System.out.println(wcagDefinitions.get(wcag.removeMin()));
+        System.out.println(wcagDefinitions.get(wcag.removeMin()));
     }
 }
