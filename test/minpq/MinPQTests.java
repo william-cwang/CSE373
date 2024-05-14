@@ -127,7 +127,7 @@ public abstract class MinPQTests {
     }
 
     // Random Testing
-    //@Test
+    @Test
     public void randomTest() throws FileNotFoundException {
         File inputFile = new File("data/wcag.tsv");
         Scanner scanner = new Scanner(inputFile);
