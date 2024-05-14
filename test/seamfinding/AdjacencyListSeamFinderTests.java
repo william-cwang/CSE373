@@ -12,7 +12,7 @@ import org.junit.jupiter.api.Nested;
 public class AdjacencyListSeamFinderTests {
 
     /**
-     * Tests using the {@link DijkstraSolver} implementation.
+     * Tests usi.jang the {@link DijkstraSolver} implementation.
      */
     @Nested
     public class UsingDijkstraSolver extends SeamFinderTests {

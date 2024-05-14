@@ -28,9 +28,9 @@ public class MapServer {
      */
     private static final String OSM_DB_PATH = "seattle.osm.gz";
     /**
-     * The place-importance TSV data file path from OpenStreetMap.
+     * The TSV of OSM way accessibility scores.
      */
-    private static final String PLACES_PATH = "places.tsv";
+    private static final String ACCESS_PATH = "access.tsv";
     /**
      * Maximum number of autocomplete search results.
      */
@@ -39,7 +39,7 @@ public class MapServer {
     public static void main(String[] args) throws Exception {
         SpatialContext context = SpatialContext.GEO;
         ShapeFactory factory = context.getShapeFactory();
-        MapGraph map = new MapGraph(OSM_DB_PATH, PLACES_PATH, context);
+        MapGraph map = new MapGraph(OSM_DB_PATH, ACCESS_PATH, context);
         Javalin app = Javalin.create(config -> {
             config.spaRoot.addFile("/", "index.html");
         }).start(port());
@@ -68,8 +68,12 @@ public class MapServer {
             URL staticImageURL = url(center, zoom, width, height, route, locations);
             ctx.result(new Base64InputStream(staticImageURL.openStream(), true));
         });
-        app.get("/search", ctx -> {
-            ctx.json(map.getLocationsByPrefix(ctx.queryParam("term"), MAX_MATCHES));
+        app.get("/search/{lon},{lat}/{term}", ctx -> {
+            double lon = ctx.pathParamAsClass("lon", Double.class).get();
+            double lat = ctx.pathParamAsClass("lat", Double.class).get();
+            Point center = factory.pointLatLon(lat, lon);
+            String term = ctx.pathParam("term");
+            ctx.json(map.getLocationsByPrefix(term, center, MAX_MATCHES));
         });
     }
 

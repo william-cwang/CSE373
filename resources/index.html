@@ -179,7 +179,7 @@
 
         autocomplete({
             input: search,
-            fetch: (text, callback) => fetch('/search?term=' + text)
+            fetch: (text, callback) => fetch(`/search/${lon},${lat}/${text}`)
                     .then(response => response.json())
                     .then(callback),
             render: (item, currentValue) => {

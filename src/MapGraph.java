@@ -26,61 +26,64 @@ import java.util.zip.GZIPInputStream;
  */
 public class MapGraph implements AStarGraph<Point> {
     private final String osmPath;
-    private final String placesPath;
+    private final String accessPath;
     private final SpatialContext context;
     private final Map<Point, List<Edge<Point>>> neighbors;
-    private final Map<String, List<Point>> locations;
+    private final Map<Long, Point> byId;
+    private final Map<String, List<Point>> byName;
     private final Autocomplete autocomplete;
-    private final Map<CharSequence, Integer> importance;
+    private final Map<Long, Double> accessScores;
+    private static final Set<String> allowedHighwayTypes = Set.of(
+            "motorway",
+            "trunk",
+            "primary",
+            "secondary",
+            "tertiary",
+            "unclassified",
+            "residential",
+            "living_street",
+            "motorway_link",
+            "trunk_link",
+            "primary_link",
+            "secondary_link",
+            "tertiary_link"
+    );
 
     /**
      * Constructs a new map graph from the path to an OSM GZ file and a places TSV.
      *
      * @param osmPath    The path to a gzipped OSM (XML) file.
-     * @param placesPath The path to a TSV file representing places and importance.
+     * @param accessPath The path to a TSV file representing access scores for each OSM way.
      * @throws ParserConfigurationException if a parser cannot be created.
      * @throws SAXException                 for SAX errors.
      * @throws IOException                  if a file is not found or if the file is not gzipped.
      */
-    public MapGraph(String osmPath, String placesPath, SpatialContext context)
+    public MapGraph(String osmPath, String accessPath, SpatialContext context)
             throws ParserConfigurationException, SAXException, IOException {
         this.osmPath = osmPath;
-        this.placesPath = placesPath;
+        this.accessPath = accessPath;
         this.context = context;
+
+        // Parse the Project Sidewalk access scores
+        accessScores = new HashMap<>();
+        try (Scanner input = new Scanner(fileStream(accessPath))) {
+            input.nextLine(); // Skip header
+            while (input.hasNextLine()) {
+                Scanner line = new Scanner(input.nextLine()).useDelimiter("\t");
+                accessScores.put(line.nextLong(), line.nextDouble());
+            }
+        }
 
         // Parse the OpenStreetMap (OSM) data using the SAXParser XML tree walker.
         neighbors = new HashMap<>();
-        Handler handler = new Handler(Set.of(
-                "motorway",
-                "trunk",
-                "primary",
-                "secondary",
-                "tertiary",
-                "unclassified",
-                "residential",
-                "living_street",
-                "motorway_link",
-                "trunk_link",
-                "primary_link",
-                "secondary_link",
-                "tertiary_link"
-        ));
+        byId = new HashMap<>();
+        byName = new HashMap<>();
         SAXParser saxParser = SAXParserFactory.newInstance().newSAXParser();
-        saxParser.parse(new GZIPInputStream(fileStream(osmPath)), handler);
+        saxParser.parse(new GZIPInputStream(fileStream(osmPath)), new Handler());
 
         // Add reachable locations to the Autocomplete engine.
-        locations = handler.byName;
         autocomplete = new TreeSetAutocomplete();
-        autocomplete.addAll(locations.keySet());
-
-        // Parse the place-importance data.
-        importance = new HashMap<>();
-        try (Scanner input = new Scanner(fileStream(placesPath))) {
-            while (input.hasNextLine()) {
-                Scanner line = new Scanner(input.nextLine()).useDelimiter("\t");
-                importance.put(line.next(), line.nextInt());
-            }
-        }
+        autocomplete.addAll(byName.keySet());
     }
 
     /**
@@ -113,11 +116,11 @@ public class MapGraph implements AStarGraph<Point> {
      * @param prefix prefix string that could be any case with or without punctuation.
      * @return a list of full names of locations matching the prefix.
      */
-    public List<CharSequence> getLocationsByPrefix(String prefix, int maxMatches) {
+    public List<CharSequence> getLocationsByPrefix(String prefix, Point center, int maxMatches) {
         List<CharSequence> matches = autocomplete.allMatches(prefix);
         Map<CharSequence, Double> elementsAndPriorities = new HashMap<>(matches.size());
         for (CharSequence match : matches) {
-            elementsAndPriorities.put(match, (double) importance.get(match));
+            elementsAndPriorities.put(match, estimatedDistance(center, byName.get(match).get(0)));
         }
         return new DoubleMapMinPQ<>(elementsAndPriorities).removeMin(maxMatches);
     }
@@ -129,7 +132,7 @@ public class MapGraph implements AStarGraph<Point> {
      * @return a list of locations whose name matches the location name.
      */
     public List<Point> getLocations(String locationName) {
-        return locations.getOrDefault(locationName, List.of());
+        return byName.getOrDefault(locationName, List.of());
     }
 
     /**
@@ -157,7 +160,7 @@ public class MapGraph implements AStarGraph<Point> {
     public String toString() {
         return "MapGraph{" +
                 "osmPath='" + osmPath + '\'' +
-                ", placesPath='" + placesPath + '\'' +
+                ", accessPath='" + accessPath + '\'' +
                 ", context='" + context + '\'' +
                 '}';
     }
@@ -167,21 +170,19 @@ public class MapGraph implements AStarGraph<Point> {
      *
      * @param from the originating point of the edge.
      * @param to the terminating point of the edge.
+     * @param accessScore the access score for the edge where 0 is inaccessible and 1 is accessible.
      */
-    private void addEdge(Point from, Point to) {
+    private void addEdge(Point from, Point to, double accessScore) {
         if (!neighbors.containsKey(from)) {
             neighbors.put(from, new ArrayList<>());
         }
-        neighbors.get(from).add(new Edge<>(from, to, estimatedDistance(from, to)));
+        neighbors.get(from).add(new Edge<>(from, to, estimatedDistance(from, to) / accessScore));
     }
 
     /**
      * Parses OSM XML files to construct a MapGraph.
      */
     private class Handler extends DefaultHandler {
-        private final Set<String> allowedHighwayTypes;
-        private final Map<Long, Point> byId;
-        private final Map<String, List<Point>> byName;
         private String state;
         private long id;
         private String name;
@@ -189,10 +190,7 @@ public class MapGraph implements AStarGraph<Point> {
         private Point location;
         private Queue<Point> path;
 
-        Handler(Set<String> allowedHighwayTypes) {
-            this.allowedHighwayTypes = allowedHighwayTypes;
-            this.byId = new HashMap<>();
-            this.byName = new HashMap<>();
+        Handler() {
             reset();
         }
 
@@ -232,6 +230,7 @@ public class MapGraph implements AStarGraph<Point> {
                 );
             } else if (qName.equals("way")) {
                 state = "way";
+                id = Long.parseLong(attributes.getValue("id"));
             } else if (state.equals("way") && qName.equals("nd")) {
                 long ref = Long.parseLong(attributes.getValue("ref"));
                 path.add(byId.get(ref));
@@ -262,11 +261,17 @@ public class MapGraph implements AStarGraph<Point> {
         public void endElement(String uri, String localName, String qName) {
             if (qName.equals("way")) {
                 if (validWay && !path.isEmpty()) {
+                    double accessScore;
+                    if (accessScores.containsKey(id)) {
+                        accessScore = accessScores.get(id);
+                    } else {
+                        accessScore = 1;
+                    }
                     Point from = path.remove();
                     while (!path.isEmpty()) {
                         Point to = path.remove();
-                        addEdge(from, to);
-                        addEdge(to, from);
+                        addEdge(from, to, accessScore);
+                        addEdge(to, from, accessScore);
                         from = to;
                     }
                 }

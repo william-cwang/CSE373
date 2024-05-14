@@ -56,6 +56,7 @@ public abstract class SeamFinderTests {
     @ValueSource(strings = {"HJoceanSmall", "stripes", "diagonals", "diag_test", "chameleon",
                             "12x10", "10x12", "10x10", "8x3", "7x10", "7x3", "6x5", "5x6", "4x6",
                             "3x8", "3x7", "3x4", "3x3"})
+    //@ValueSource(strings = {"3x4"})
     void precomputedImages(String basename) throws IOException {
         Picture picture = new Picture(new File(BASE_PATH + basename + ".png"));
 
