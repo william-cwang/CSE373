@@ -129,10 +129,13 @@ public abstract class MinPQTests {
     // Random Testing
     @Test
     public void randomTest() throws FileNotFoundException {
+
+        // Change this value to the number of terms to upweight
+        int upweight = 3;
+
         File inputFile = new File("data/wcag.tsv");
         Scanner scanner = new Scanner(inputFile);
         ArrayList<String> tags = new ArrayList<>();
-        ArrayList<Integer> priorities = new ArrayList<>();
 
         MinPQ<String> reference = new DoubleMapMinPQ<>();
         MinPQ<String> testing = new OptimizedHeapMinPQ<>();
@@ -155,7 +158,16 @@ public abstract class MinPQTests {
 
             if (!testing.contains(element)) testing.add(element, 1);
             else testing.changePriority(element, testing.getPriority(element) + 1);
+        }
 
+        // Changes the Priority
+        List<String> upweighted = new ArrayList<>();
+        for (int i = 0; i < upweight; i++) {
+            upweighted.add(reference.removeMin());
+        }
+        for (int i = 0; i < upweighted.size(); i++) {
+            reference.addOrChangePriority(upweighted.get(i), 10000);
+            testing.addOrChangePriority(upweighted.get(i), 10000);
         }
 
         // Removing each element and making sure priorities are same
@@ -164,7 +176,7 @@ public abstract class MinPQTests {
         // We are testing both that the priorities of the current heap-min values (priorities) are the same, then
         // testing that the values removed are the same.
         // You can easily change the "3" to 5-10 or another arbitrary number.
-        while (reference.size() > 3) {
+        while (reference.size() > upweight) {
             if (reference.peekMin().equals(testing.peekMin())) {
                 assertEquals(reference.removeMin(), testing.removeMin());
             } else {
